@@ -16,6 +16,7 @@
 
 package com.alibaba.fescar.core.rpc.netty;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +41,7 @@ import com.alibaba.fescar.core.protocol.HeartbeatMessage;
 import com.alibaba.fescar.core.protocol.RegisterRMRequest;
 import com.alibaba.fescar.core.protocol.RegisterRMResponse;
 import com.alibaba.fescar.core.rpc.netty.NettyPoolKey.TransactionRole;
+import com.alibaba.nacos.client.naming.utils.CollectionUtils;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -55,11 +57,8 @@ import static com.alibaba.fescar.common.Constants.DBKEYS_SPLIT_CHAR;
 /**
  * The type Rm rpc client.
  *
- * @Author: jimin.jm @alibaba-inc.com
- * @Project: fescar -all
- * @DateTime: 2018 /10/10 11:27
- * @FileName: RmRpcClient
- * @Description:
+ * @author jimin.jm @alibaba-inc.com
+ * @date 2018 /10/10
  */
 @Sharable
 public final class RmRpcClient extends AbstractRpcRemotingClient {
@@ -188,7 +187,7 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
         poolConfig.maxWait = rmClientConfig.getMaxAcquireConnMills();
         poolConfig.testOnBorrow = rmClientConfig.isPoolTestBorrow();
         poolConfig.testOnReturn = rmClientConfig.isPoolTestReturn();
-        poolConfig.lifo = rmClientConfig.isPoolFifo();
+        poolConfig.lifo = rmClientConfig.isPoolLifo();
         return poolConfig;
     }
 
@@ -198,14 +197,22 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
     }
 
     private void reconnect() {
-        for (String serverAddress : serviceManager.lookup(transactionServiceGroup)) {
-            if (serverAddress != null) {
-                try {
-                    connect(serverAddress);
-                } catch (Exception e) {
-                    LOGGER.error(FrameworkErrorCode.NetConnect.errCode,
-                        "can not connect to " + serverAddress + " cause:" + e.getMessage(), e);
-                }
+        List<String> availList = null;
+        try {
+            availList = getAvailServerList(transactionServiceGroup);
+        } catch (Exception exx) {
+            LOGGER.error(exx.getMessage());
+        }
+        if (CollectionUtils.isEmpty(availList)) {
+            LOGGER.error("no available server to connect.");
+            return;
+        }
+        for (String serverAddress : availList) {
+            try {
+                connect(serverAddress);
+            } catch (Exception e) {
+                LOGGER.error(FrameworkErrorCode.NetConnect.errCode,
+                    "can not connect to " + serverAddress + " cause:" + e.getMessage(), e);
             }
         }
     }
@@ -432,7 +439,7 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
                 String serverAddress = entry.getKey();
                 Channel rmChannel = entry.getValue();
                 if (LOGGER.isInfoEnabled()) {
-                    LOGGER.info("register AT resourceId:" + resourceId);
+                    LOGGER.info("register resource, resourceId:" + resourceId);
                 }
                 sendRegisterMessage(serverAddress, rmChannel, resourceId);
             }
@@ -495,6 +502,7 @@ public final class RmRpcClient extends AbstractRpcRemotingClient {
      * @return the merged resource keys
      */
     public String getMergedResourceKeys(ResourceManager resourceManager) {
+        //TODO
         Map<String, Resource> managedResources = resourceManager.getManagedResources();
         Set<String> resourceIds = managedResources.keySet();
         if (!resourceIds.isEmpty()) {

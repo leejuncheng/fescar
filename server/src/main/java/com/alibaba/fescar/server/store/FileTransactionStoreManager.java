@@ -70,8 +70,8 @@ public class FileTransactionStoreManager implements TransactionStoreManager {
     private File currDataFile;
     private RandomAccessFile currRaf;
     private FileChannel currFileChannel;
-    private static long recoverCurrOffset = 0;
-    private static long recoverHisOffset = 0;
+    private long recoverCurrOffset = 0;
+    private long recoverHisOffset = 0;
     private SessionManager sessionManager;
     private String currFullFileName;
     private String hisFullFileName;
@@ -98,6 +98,10 @@ public class FileTransactionStoreManager implements TransactionStoreManager {
         try {
             currDataFile = new File(currFullFileName);
             if (!currDataFile.exists()) {
+                //create parent dir first
+                if (currDataFile.getParentFile() != null && !currDataFile.getParentFile().exists()) {
+                    currDataFile.getParentFile().mkdirs();
+                }
                 currDataFile.createNewFile();
                 trxStartTimeMills = System.currentTimeMillis();
             } else {

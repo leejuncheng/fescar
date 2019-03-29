@@ -23,7 +23,8 @@ import io.netty.buffer.ByteBuf;
  */
 public abstract class AbstractIdentifyResponse extends AbstractResultMessage {
 
-    private String version = Version.CURRENT;;
+    private String version = Version.CURRENT;
+    ;
 
     private String extraData;
 
@@ -85,16 +86,16 @@ public abstract class AbstractIdentifyResponse extends AbstractResultMessage {
 
     @Override
     public void doEncode() {
-//        super.doEncode();
-        byteBuffer.put(this.identified ? (byte) 1 : (byte) 0);
+        //        super.doEncode();
+        byteBuffer.put(this.identified ? (byte)1 : (byte)0);
         if (this.version != null) {
             byte[] bs = version.getBytes(UTF8);
-            byteBuffer.putShort((short) bs.length);
+            byteBuffer.putShort((short)bs.length);
             if (bs.length > 0) {
                 byteBuffer.put(bs);
             }
         } else {
-            byteBuffer.putShort((short) 0);
+            byteBuffer.putShort((short)0);
         }
 
     }
@@ -120,5 +121,26 @@ public abstract class AbstractIdentifyResponse extends AbstractResultMessage {
         }
 
         return true;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        result.append("version=");
+        result.append(String.valueOf(version));
+        result.append(",");
+        result.append("extraData=");
+        result.append(String.valueOf(extraData));
+        result.append(",");
+        result.append("identified=");
+        result.append(String.valueOf(identified));
+        result.append(",");
+        result.append("resultCode=");
+        result.append(String.valueOf(getResultCode()));
+        result.append(",");
+        result.append("msg=");
+        result.append(String.valueOf(getMsg()));
+
+        return result.toString();
     }
 }

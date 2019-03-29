@@ -19,11 +19,8 @@ package com.alibaba.fescar.common;
 /**
  * The type Xid.
  *
- * @Author: jimin.jm @alibaba-inc.com
- * @Project: fescar -all
- * @DateTime: 2018 /10/10 12:27
- * @FileName: XID
- * @Description:
+ * @author jimin.jm @alibaba-inc.com
+ * @date 2018 /10/10
  */
 public class XID {
 
@@ -87,5 +84,23 @@ public class XID {
 
         int idx = xid.lastIndexOf(":");
         return xid.substring(0, idx);
+    }
+
+    /**
+     * Gets port.
+     *
+     * @return the port
+     */
+    public static int getPort() {
+        return port;
+    }
+
+    /**
+     * Gets ip address.
+     *
+     * @return the ip address
+     */
+    public static String getIpAddress() {
+        return ipAddress;
     }
 }

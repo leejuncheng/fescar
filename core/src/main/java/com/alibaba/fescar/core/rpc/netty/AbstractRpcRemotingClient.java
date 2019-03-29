@@ -17,6 +17,8 @@
 package com.alibaba.fescar.core.rpc.netty;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +40,8 @@ import com.alibaba.fescar.core.rpc.RemotingService;
 import com.alibaba.fescar.core.rpc.netty.NettyPoolKey.TransactionRole;
 import com.alibaba.fescar.core.service.ServiceManager;
 import com.alibaba.fescar.core.service.ServiceManagerStaticConfigImpl;
+import com.alibaba.fescar.discovery.registry.RegistryFactory;
+import com.alibaba.nacos.client.naming.utils.CollectionUtils;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -67,11 +71,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The type Rpc remoting client.
  *
- * @Author: jimin.jm @alibaba-inc.com
- * @Project: fescar -all
- * @DateTime: 2018 /9/12 11:30
- * @FileName: AbstractRpcRemotingClient
- * @Description:
+ * @author jimin.jm @alibaba-inc.com
+ * @date 2018 /9/12
  */
 public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
     implements RemotingService, RegisterMsgListener, ClientMessageSender {
@@ -318,6 +319,25 @@ public abstract class AbstractRpcRemotingClient extends AbstractRpcRemoting
             String remoteAddress = NetUtil.toStringAddress(ctx.channel().remoteAddress());
             clientMessageListener.onMessage(msgId, remoteAddress, msg, this);
         }
+    }
+
+    /**
+     * Gets avail server list.
+     *
+     * @param transactionServiceGroup the transaction service group
+     * @return the avail server list
+     * @throws Exception the exception
+     */
+    protected List<String> getAvailServerList(String transactionServiceGroup) throws Exception {
+        List<String> availList = new ArrayList<>();
+        List<InetSocketAddress> availInetSocketAddressList = RegistryFactory.getInstance().lookup(
+            transactionServiceGroup);
+        if (!CollectionUtils.isEmpty(availInetSocketAddressList)) {
+            for (InetSocketAddress address : availInetSocketAddressList) {
+                availList.add(NetUtil.toStringAddress(address));
+            }
+        }
+        return availList;
     }
 
     /**

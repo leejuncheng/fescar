@@ -21,11 +21,15 @@ import java.sql.Statement;
 import java.util.List;
 
 import com.alibaba.fescar.core.context.RootContext;
+import com.alibaba.fescar.rm.datasource.ConnectionProxy;
 import com.alibaba.fescar.rm.datasource.StatementProxy;
 import com.alibaba.fescar.rm.datasource.sql.SQLRecognizer;
+import com.alibaba.fescar.rm.datasource.sql.SQLType;
 import com.alibaba.fescar.rm.datasource.sql.struct.Field;
 import com.alibaba.fescar.rm.datasource.sql.struct.TableMeta;
 import com.alibaba.fescar.rm.datasource.sql.struct.TableMetaCache;
+import com.alibaba.fescar.rm.datasource.sql.struct.TableRecords;
+import com.alibaba.fescar.rm.datasource.undo.SQLUndoLog;
 
 /**
  * The type Base transactional executor.
@@ -59,7 +63,8 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
      * @param statementCallback the statement callback
      * @param sqlRecognizer     the sql recognizer
      */
-    public BaseTransactionalExecutor(StatementProxy<S> statementProxy, StatementCallback<T, S> statementCallback, SQLRecognizer sqlRecognizer) {
+    public BaseTransactionalExecutor(StatementProxy<S> statementProxy, StatementCallback<T, S> statementCallback,
+                                     SQLRecognizer sqlRecognizer) {
         this.statementProxy = statementProxy;
         this.statementCallback = statementCallback;
         this.sqlRecognizer = sqlRecognizer;
@@ -67,8 +72,16 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
 
     @Override
     public Object execute(Object... args) throws Throwable {
-        String xid = RootContext.getXID();
-        statementProxy.getConnectionProxy().bind(xid);
+        if (RootContext.inGlobalTransaction()) {
+            String xid = RootContext.getXID();
+            statementProxy.getConnectionProxy().bind(xid);
+        }
+
+        if (RootContext.requireGlobalLock()) {
+            statementProxy.getConnectionProxy().setGlobalLockRequire(true);
+        } else {
+            statementProxy.getConnectionProxy().setGlobalLockRequire(false);
+        }
         return doExecute(args);
     }
 
@@ -151,6 +164,71 @@ public abstract class BaseTransactionalExecutor<T, S extends Statement> implemen
         }
         tableMeta = TableMetaCache.getTableMeta(statementProxy.getConnectionProxy().getDataSourceProxy(), tableName);
         return tableMeta;
+    }
+
+    /**
+     * prepare undo log.
+     *
+     * @param beforeImage the before image
+     * @param afterImage  the after image
+     * @throws SQLException the sql exception
+     */
+    protected void prepareUndoLog(TableRecords beforeImage, TableRecords afterImage) throws SQLException {
+        if (beforeImage.getRows().size() == 0 && afterImage.getRows().size() == 0) {
+            return;
+        }
+
+        ConnectionProxy connectionProxy = statementProxy.getConnectionProxy();
+
+        TableRecords lockKeyRecords = sqlRecognizer.getSQLType() == SQLType.DELETE ? beforeImage : afterImage;
+        String lockKeys = buildLockKey(lockKeyRecords);
+        connectionProxy.appendLockKey(lockKeys);
+
+        SQLUndoLog sqlUndoLog = buildUndoItem(beforeImage, afterImage);
+        connectionProxy.appendUndoLog(sqlUndoLog);
+    }
+
+    /**
+     * build lockKey
+     *
+     * @param rowsIncludingPK the records
+     * @return the string
+     */
+    protected String buildLockKey(TableRecords rowsIncludingPK) {
+        if (rowsIncludingPK.size() == 0) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(rowsIncludingPK.getTableMeta().getTableName());
+        sb.append(":");
+        int filedSequence = 0;
+        for (Field field : rowsIncludingPK.pkRows()) {
+            sb.append(field.getValue());
+            filedSequence++;
+            if (filedSequence < rowsIncludingPK.pkRows().size()) {
+                sb.append(",");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * build a SQLUndoLog
+     *
+     * @param beforeImage the before image
+     * @param afterImage  the after image
+     * @return sql undo log
+     */
+    protected SQLUndoLog buildUndoItem(TableRecords beforeImage, TableRecords afterImage) {
+        SQLType sqlType = sqlRecognizer.getSQLType();
+        String tableName = sqlRecognizer.getTableName();
+
+        SQLUndoLog sqlUndoLog = new SQLUndoLog();
+        sqlUndoLog.setSqlType(sqlType);
+        sqlUndoLog.setTableName(tableName);
+        sqlUndoLog.setBeforeImage(beforeImage);
+        sqlUndoLog.setAfterImage(afterImage);
+        return sqlUndoLog;
     }
 
 }

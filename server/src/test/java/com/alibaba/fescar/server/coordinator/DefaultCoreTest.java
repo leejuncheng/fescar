@@ -77,7 +77,7 @@ public class DefaultCoreTest {
      */
     @Test(dataProvider = "xidProvider")
     public void branchRegisterTest(String xid) throws Exception {
-        core.branchRegister(BranchType.AT, resourceId, clientId, xid, lockKeys_1);
+        core.branchRegister(BranchType.AT, resourceId, clientId, xid, "abc", lockKeys_1);
 
         long transactionId = XID.getTransactionId(xid);
         GlobalSession globalSession = SessionHolder.findGlobalSession(transactionId);
@@ -93,7 +93,7 @@ public class DefaultCoreTest {
      */
     @Test(dataProvider = "xidAndBranchIdProvider")
     public void branchReportTest(String xid, Long branchId) throws Exception {
-        core.branchReport(xid, branchId, BranchStatus.PhaseOne_Done, applicationData);
+        core.branchReport(BranchType.AT, xid, branchId, BranchStatus.PhaseOne_Done, applicationData);
 
         long transactionId = XID.getTransactionId(xid);
         GlobalSession globalSession = SessionHolder.findGlobalSession(transactionId);
@@ -124,7 +124,7 @@ public class DefaultCoreTest {
     @Test(dataProvider = "xidProvider")
     public void commitTest(String xid) throws Exception {
         GlobalStatus globalStatus = core.commit(xid);
-        Assert.assertEquals(globalStatus, GlobalStatus.Begin);
+        Assert.assertNotEquals(globalStatus, GlobalStatus.Begin);
     }
 
     /**
@@ -186,7 +186,7 @@ public class DefaultCoreTest {
     @DataProvider
     public static Object[][] xidAndBranchIdProvider() throws Exception {
         String xid = core.begin(applicationId, txServiceGroup, txName, timeout);
-        Long branchId = core.branchRegister(BranchType.AT, resourceId, clientId, xid, lockKeys_2);
+        Long branchId = core.branchRegister(BranchType.AT, resourceId, clientId, xid, null, lockKeys_2);
         return new Object[][] {{xid, branchId}};
     }
 

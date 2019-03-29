@@ -87,4 +87,22 @@ public class BranchRegisterResponse extends AbstractTransactionResponse implemen
         this.transactionId = byteBuffer.getLong();
         this.branchId = byteBuffer.getLong();
     }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        result.append("BranchRegisterResponse: transactionId=");
+        result.append(transactionId);
+        result.append(",");
+        result.append("branchId=");
+        result.append(branchId);
+        result.append(",");
+        result.append("result code =");
+        result.append(getResultCode());
+        result.append(",");
+        result.append("getMsg =");
+        result.append(getMsg());
+
+        return result.toString();
+    }
 }
